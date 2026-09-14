@@ -1,0 +1,11 @@
+apscheduler==3.11.3
+fastapi==0.141.1
+pydantic==2.13.5
+pydantic_settings==2.15.0
+pytest==9.1.1
+python_jose==3.5.0
+Requests==2.34.2
+supabase==2.31.0
+twilio==9.11.1
+uvicorn==0.52.4
+python-dotenv==1.2.3

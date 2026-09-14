@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+.env
+requirements_old_backup.txt
+*.joblib
