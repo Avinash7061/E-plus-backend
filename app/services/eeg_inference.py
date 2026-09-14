@@ -15,13 +15,22 @@ if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) == 0:
 _MODEL_BUNDLE = None
 
 def get_model_bundle():
-    global _MODEL_BUNDLE
+    global _MODEL_BUNDLE, MODEL_PATH
     if _MODEL_BUNDLE is None:
+        if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) == 0:
+            try:
+                from huggingface_hub import hf_hub_download
+                print("Downloading model bundle from Hugging Face Hub (Avi7061/e-plus-eeg-model)...")
+                MODEL_PATH = hf_hub_download(repo_id="Avi7061/e-plus-eeg-model", filename="eeg_best_model.joblib")
+            except Exception as e:
+                print(f"Hugging Face download fallback failed: {e}")
+
         if os.path.exists(MODEL_PATH) and os.path.getsize(MODEL_PATH) > 0:
             _MODEL_BUNDLE = joblib.load(MODEL_PATH)
         else:
             raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
     return _MODEL_BUNDLE
+
 
 def extract_features(window):
     """
