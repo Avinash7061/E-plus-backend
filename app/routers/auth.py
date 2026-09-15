@@ -30,15 +30,24 @@ def register(request: RegisterRequest, db: Client = Depends(get_supabase)):
 
 @router.post("/login")
 def login(request: LoginRequest, db: Client = Depends(get_supabase)):
-    """Logs in an existing user via phone number, returning an access token and user profile"""
-    response = db.table("users").select("*").eq("phone_number", request.phone_number).execute()
+    """Logs in an existing user or creates a new one via phone number, returning a JWT access token"""
+    clean_phone = request.phone_number.strip().replace(" ", "")
+    response = db.table("users").select("*").eq("phone_number", clean_phone).execute()
     
-    if not response.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if response.data:
+        user = response.data[0]
+    else:
+        name = request.full_name or f"User {clean_phone[-4:]}"
+        insert_res = db.table("users").insert({
+            "phone_number": clean_phone,
+            "full_name": name,
+            "role": "patient"
+        }).execute()
+        if not insert_res.data:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user")
+        user = insert_res.data[0]
         
-    user = response.data[0]
     access_token = create_access_token(user_id=user["id"])
-    
     return {"access_token": access_token, "user": user}
 
 @router.post("/email-login")

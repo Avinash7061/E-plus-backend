@@ -11,6 +11,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     """Schema for user login request"""
     phone_number: str
+    full_name: Optional[str] = None
 
 class UserResponse(BaseModel):
     """Schema for user data response"""
