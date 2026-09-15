@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import Client
 from app.core.supabase_client import get_supabase
 from app.schemas.user import RegisterRequest, LoginRequest, EmailLoginRequest
-from app.core.security import create_access_token
+from app.core.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,17 +30,32 @@ def register(request: RegisterRequest, db: Client = Depends(get_supabase)):
 
 @router.post("/login")
 def login(request: LoginRequest, db: Client = Depends(get_supabase)):
-    """Logs in an existing user or creates a new one via phone number, returning a JWT access token"""
+    """Logs in an existing user or creates a new one via phone number with password verification"""
+    req_pass = (request.password or "").strip()
+    if not req_pass:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required")
+
     clean_phone = request.phone_number.strip().replace(" ", "")
     response = db.table("users").select("*").eq("phone_number", clean_phone).execute()
     
     if response.data:
         user = response.data[0]
+        stored_hash = user.get("password_hash")
+        if stored_hash:
+            if not verify_password(req_pass, stored_hash):
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+        else:
+            # Set initial password for existing account
+            new_hash = hash_password(req_pass)
+            db.table("users").update({"password_hash": new_hash}).eq("id", user["id"]).execute()
+            user["password_hash"] = new_hash
     else:
         name = request.full_name or f"User {clean_phone[-4:]}"
+        new_hash = hash_password(req_pass)
         insert_res = db.table("users").insert({
             "phone_number": clean_phone,
             "full_name": name,
+            "password_hash": new_hash,
             "role": "patient"
         }).execute()
         if not insert_res.data:
@@ -52,21 +67,35 @@ def login(request: LoginRequest, db: Client = Depends(get_supabase)):
 
 @router.post("/email-login")
 def email_login(request: EmailLoginRequest, db: Client = Depends(get_supabase)):
-    """Direct email login/registration bypass for development and rate-limited environments"""
+    """Logs in an existing user or registers a new user with required password verification"""
+    req_pass = (request.password or "").strip()
+    if not req_pass:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required")
+
     clean_email = request.email.strip().lower()
     response = db.table("users").select("*").eq("email", clean_email).execute()
     
     if response.data:
         user = response.data[0]
+        stored_hash = user.get("password_hash")
+        if stored_hash:
+            if not verify_password(req_pass, stored_hash):
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+        else:
+            # Set initial password for existing account
+            new_hash = hash_password(req_pass)
+            db.table("users").update({"password_hash": new_hash}).eq("id", user["id"]).execute()
+            user["password_hash"] = new_hash
     else:
-        # Create user profile in Supabase
         import time
         name = request.full_name or clean_email.split("@")[0].replace(".", " ").title()
         fallback_phone = f"+91-99900{str(int(time.time()))[-5:]}"
+        new_hash = hash_password(req_pass)
         insert_res = db.table("users").insert({
             "email": clean_email,
             "full_name": name,
             "phone_number": fallback_phone,
+            "password_hash": new_hash,
             "role": "patient"
         }).execute()
         

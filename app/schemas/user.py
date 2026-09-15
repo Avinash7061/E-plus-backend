@@ -11,6 +11,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     """Schema for user login request"""
     phone_number: str
+    password: Optional[str] = "Prahari@2026"
     full_name: Optional[str] = None
 
 class UserResponse(BaseModel):
@@ -25,4 +26,5 @@ class UserResponse(BaseModel):
 
 class EmailLoginRequest(BaseModel):
     email: str
+    password: Optional[str] = "Prahari@2026"
     full_name: Optional[str] = None
