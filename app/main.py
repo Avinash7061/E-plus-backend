@@ -6,6 +6,14 @@ from app.jobs.scheduler import start_scheduler, shutdown_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Pre-load ML model bundle at startup for zero-latency first inference
+    try:
+        from app.services.eeg_inference import get_model_bundle
+        bundle = get_model_bundle()
+        print(f"ML Model bundle pre-loaded successfully: {bundle.get('model_name', 'Random Forest')}")
+    except Exception as e:
+        print(f"Warning: ML model pre-load during startup encountered: {e}")
+
     start_scheduler()
     yield
     shutdown_scheduler()
